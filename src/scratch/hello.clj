@@ -1,3 +1,7 @@
+;; 12-27-19 goals
+;;  * simple auth working
+;;  * cljs served from static file
+
 
 (ns scratch.hello
   (:require [io.pedestal.http :as http]
@@ -45,19 +49,28 @@
   {::http/routes routes
    ::http/type   :jetty
    ::http/port   8890
-;;   ::http/enable-csrf {}
+   ::http/secure-headers nil ;;{:content-security-policy-settings {:default-src "'self'"}}
+   ;;   ::http/enable-csrf {}
+   ::http/resource-path "/public"
+   ::http/file-path "target/public"
    ::http/enable-session {:store (cookie/cookie-store {:key "a 16-byte secret"})}
    ::http/host   "0.0.0.0"})
 
+(defn service
+  [service-map]
+  (-> service-map
+      (http/default-interceptors)
+      (update ::http/interceptors conj (middlewares/file-info))))
+      
 (defn start []
-  (http/start (http/create-server service-map)))
+  (http/start (http/create-server (service service-map))))
 
 (defonce server (atom nil))
 
 (defn start-dev []
   (reset! server
           (http/start (http/create-server
-                       (assoc service-map
+                       (assoc (service service-map)
                               ::http/join? false)))))
 
 (defn stop-dev []

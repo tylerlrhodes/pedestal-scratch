@@ -15,7 +15,9 @@
   {:dev
    {:dependencies [[org.clojure/clojurescript "1.10.339"]
                    [com.bhauman/figwheel-main "0.2.3"]
-                   [com.bhauman/rebel-readline-cljs "0.1.4"]]
+                   [com.bhauman/rebel-readline-cljs "0.1.4"]
+                   [hiccups "0.3.0"]
+                   [rum "0.11.4"]]
    :resource-paths ["target"]
    :clean-targets ^{:protect false} ["target"]}}
   :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]}

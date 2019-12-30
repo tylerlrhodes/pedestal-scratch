@@ -9,6 +9,7 @@
                  [io.pedestal/pedestal.route "0.5.7"]
                  [io.pedestal/pedestal.jetty "0.5.7"]
                  [buddy "2.0.0"]
+                 [org.clojure/data.json "0.2.7"]
                  [org.slf4j/slf4j-simple "1.7.28"]]
   :source-paths ["src" "cljs-src"]
   :profiles
@@ -17,6 +18,7 @@
                    [com.bhauman/figwheel-main "0.2.3"]
                    [com.bhauman/rebel-readline-cljs "0.1.4"]
                    [hiccups "0.3.0"]
+                   [cljs-ajax "0.7.5"]
                    [rum "0.11.4"]]
    :resource-paths ["target"]
    :clean-targets ^{:protect false} ["target"]}}

@@ -7,6 +7,13 @@
 ;;  * simple auth working
 ;;  * get CSP and CSRF chugging
 
+;; 12-30-19 goals
+;;  * move auth to it's own file
+;;  * cookie-auth
+;;  * CSRF
+;;  * rum managing component state
+;;  * beginning of RSS main screen
+
 
 (ns scratch.hello
   (:require [io.pedestal.http :as http]
@@ -16,18 +23,28 @@
             [io.pedestal.http.ring-middlewares :as middlewares]
             [ring.middleware.session.cookie :as cookie]
             [clojure.data.json :as json]
-            [buddy.hashers :as hs])
+            [buddy.hashers :as hs]
+            [scratch.login :as login])
   (:gen-class))
 
 (def users
   {"tyler" {:password "letmein"
             :display-name "Tyler Rhodes"
             :role :admin}})
-(defn ok [body]
-  {:status 200 :body (json/write-str body)
-   :headers ["Content-Type" "application/json"]
-   :session {"session-test" {:value "what the hell"}}
-   :cookies {"test" {:value "cookie tiest"}}})
+
+(defn ok
+  ([body]
+   (println "response without session being passed...")
+   {:status 200 :body (json/write-str body)
+    :headers ["Content-Type" "application/json"]
+    :session {"session-test" {:value "what the hell"}}
+    :cookies {"test" {:value "cookie tiest"}}})
+  ([body req m]
+   (merge {:status 200 :body (json/write-str body)
+           :headers ["Content-Type" "application/json"]
+           :session (get req :session)
+           :cookies (get req :cookies)}
+          m)))
 
 (defn respond-hello [request]
   (if request
@@ -47,18 +64,30 @@
 (defn login-post [request]
   (let [username (:un (:json-params request))
         password (:pw (:json-params request))]
-;;    (println "some req" (pprint/pprint request))
     (println username " " password)
-    (if (and (contains? users username)
-             (= (:password (get users username)) password))
+    (if-let [user (login-user username password)]
       (ok {:logged-in true
-           :url "/index.html?loggedin=true"})
+           :url "/index.html?loggedin=true"
+           :user user}
+          request
+          {:session
+           (merge (:session request)
+                  user)})
       (ok false))))
-  
+
+(defonce cnt (atom 0))
+
+(defn session-test [request]
+  (let [val (get-in request [:session "session-test" :value] "fudge")]
+    (println val)
+    (println (:session request))
+    (ok {:text val})))
+
 (def routes
   (route/expand-routes
    #{["/greet" :get respond-hello :route-name :greet]
      ["/echo"  :any [(body-params/body-params) echo]]
+     ["/session-test" :any [(body-params/body-params) login/auth session-test] :route-name :session-test]
      ["/login" :post [(body-params/body-params) login-post] :route-name :login-post]}))
 
 (def service-map
@@ -66,13 +95,15 @@
    ::http/type   :jetty
    ::http/port   8890
    ::http/secure-headers {:content-security-policy-settings
-                          {:default-src "*"
+                          {:default-src
+                           "* 'unsafe-inline' 'unsafe-eval'"
                            :script-src
                            "* 'unsafe-inline' 'unsafe-eval'"}}
    ;;   ::http/enable-csrf {}
    ::http/resource-path "/public"
    ::http/file-path "target/public"
-   ::http/enable-session {:store (cookie/cookie-store {:key "a 16-byte secret"})}
+   ::http/enable-session {:store (cookie/cookie-store {:key "a 16-byte secret"})
+                          :cookie-attrs {:max-age (* 60 60 24)}}
    ::http/host   "0.0.0.0"})
 
 (defn service

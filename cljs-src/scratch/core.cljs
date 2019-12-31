@@ -31,15 +31,6 @@
     :format (ajax/json-request-format)
     :response-format (ajax/json-response-format {:keywords? true})}))
 
-(defn handle-login
-  [resp]
-  (let [resp (js->clj resp)
-        logged-in (:logged-in resp)
-        url (:url resp)]
-    (if logged-in
-      (js/window.open url "_self")
-      (js/console.log "blerg"))))
-
 (rum/defcs component <
   (rum/local "" ::username)
   (rum/local "" ::password)

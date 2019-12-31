@@ -19,6 +19,7 @@
   (:require [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
+            [io.pedestal.http.csrf :as csrf]
             [clojure.pprint :as pprint]
             [io.pedestal.http.ring-middlewares :as middlewares]
             [ring.middleware.session.cookie :as cookie]
@@ -37,7 +38,7 @@
    (println "response without session being passed...")
    {:status 200 :body (json/write-str body)
     :headers ["Content-Type" "application/json"]
-    :session {"session-test" {:value "what the hell"}}
+    :session {"session-empty" {:value "shouldn't see this!"}}
     :cookies {"test" {:value "cookie tiest"}}})
   ([body req m]
    (merge {:status 200 :body (json/write-str body)
@@ -58,10 +59,18 @@
                   response (ok ctx)]
               (assoc ctx :response response)))})
 
-(defn login-get [request]
-  (ok "This would be the login form"))
+(def login-page (slurp (clojure.java.io/resource "public/index.html")))
 
+(defn login-get [request]
+  (print "xsrf: " (::csrf/anti-forgery-token request))
+  (let [txt (clojure.string/replace login-page #"\{xsrf\}" (::csrf/anti-forgery-token request))]
+    (print txt)
+    {:status 200
+     :headers {"Content-Type" "text/html"}
+     :body txt}))
+            
 (defn login-post [request]
+  (pprint/pprint request)
   (let [username (:un (:json-params request))
         password (:pw (:json-params request))]
     (println username " " password)
@@ -80,15 +89,17 @@
 (defn session-test [request]
   (let [val (get-in request [:session "session-test" :value] "fudge")]
     (println val)
+    (println request)
     (println (:session request))
-    (ok {:text val})))
+    (ok {:req "somestuff"} request {})))
 
 (def routes
   (route/expand-routes
    #{["/greet" :get respond-hello :route-name :greet]
+     ["/login" :get [(body-params/body-params) login-get] :route-name ::login-get]
      ["/echo"  :any [(body-params/body-params) echo]]
      ["/session-test" :any [(body-params/body-params) login/auth session-test] :route-name :session-test]
-     ["/login" :post [(body-params/body-params) login-post] :route-name :login-post]}))
+     ["/login" :post [login-post] :route-name :login-post]}))
 
 (def service-map
   {::http/routes routes
@@ -99,7 +110,7 @@
                            "* 'unsafe-inline' 'unsafe-eval'"
                            :script-src
                            "* 'unsafe-inline' 'unsafe-eval'"}}
-   ;;   ::http/enable-csrf {}
+   ::http/enable-csrf {}
    ::http/resource-path "/public"
    ::http/file-path "target/public"
    ::http/enable-session {:store (cookie/cookie-store {:key "a 16-byte secret"})

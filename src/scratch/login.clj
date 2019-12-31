@@ -27,8 +27,10 @@
   {:name ::zombi-auth
    :enter
    (fn [ctx]
-     (assoc ctx :response
-            {:status 403
-             :body (json/write-str {:message "Login Failed"})
-             :headers {"Content-Type" "application/json"}}))})
+     (if (get-in ctx [:request :session :user] false)
+       ctx
+       (assoc ctx :response
+              {:status 403
+               :body (json/write-str {:message "Login Failed"})
+               :headers {"Content-Type" "application/json"}})))})
 
